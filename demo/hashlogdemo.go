@@ -39,7 +39,7 @@ func main() {
 			id := fmt.Sprintf("flow-%05d", i)
 
 			// estimation
-			est1 := float64(hl.Query([]byte(id)))
+			est1 := float64(hl.Count([]byte(id)))
 
 			// error ratio
 			ratio1 := 100*est1/float64(expected[i]) - 100

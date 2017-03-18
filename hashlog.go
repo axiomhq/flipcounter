@@ -1,6 +1,7 @@
 package hashlog
 
 import (
+	"encoding/binary"
 	"math"
 	"math/rand"
 
@@ -8,12 +9,10 @@ import (
 )
 
 const (
-	exp             = 1.00026
-	keybits         = 32
-	fingerprintbits = 8
-	precisionbits   = 1
-	countbits       = 64 - keybits - fingerprintbits - precisionbits
-	guaranteeLimit  = 8388607
+	exp            = 1.00002
+	guaranteeLimit = 8388607
+	countbits      = 23
+	expBase        = 255999
 )
 
 func value(c uint32) float64 {
@@ -27,82 +26,75 @@ func value(c uint32) float64 {
 	}
 }
 
-func indicies(val []byte) (uint32, uint8) {
-	hash := metro.Hash64(val, 1337)
-	index := uint32(hash >> keybits)
-	fingerprint := uint8(hash << keybits >> (keybits + precisionbits + countbits))
-	return index, fingerprint
+type key [5]byte   // guarantees us 1,099,511,627,776 unique keys
+type count [3]byte // 24 bits, where 23 are counter and one is estimation flag
+
+func hashToBytes(hash uint64) key {
+	bytes := make([]byte, 10)
+	_ = binary.PutUvarint(bytes, hash)
+	return key{bytes[0], bytes[1], bytes[2], bytes[3]}
 }
 
-func splitVal(val uint32) (uint8, bool, uint32) {
-	fingerprint := uint8(val >> (countbits + precisionbits))
-	precLog := uint16(val<<fingerprintbits>>(fingerprintbits+countbits)) == 1
-	count := uint32(val << (precisionbits + fingerprintbits) >> (precisionbits + fingerprintbits))
-	return fingerprint, precLog, count
+func makeKey(value []byte) key {
+	return hashToBytes(metro.Hash64(value, 1337))
 }
 
-func joinVal(key uint8, precLog bool, count uint32) uint32 {
-	val := uint32(key) << (countbits + precisionbits)
-	if precLog {
-		val |= (1 << countbits)
+func getCount(value count) (bool, uint32) {
+	p := value[2]>>7 == 1
+	value[2] = value[2] << 1 >> 1
+	bytes := []byte{value[0], value[1], value[2], 0}
+	val := binary.LittleEndian.Uint32(bytes)
+	return p, val
+}
+
+func makeCount(p bool, c uint32) count {
+	bytes := make([]byte, 4)
+	binary.LittleEndian.PutUint32(bytes, c)
+	if p {
+		bytes[2] = bytes[2] | (1 << 7)
 	}
-	val |= uint32(count)
-	return val
+	return count{bytes[0], bytes[1], bytes[2]}
 }
 
-// Sketch ...
+// Sketch consits of a 5 bytes key and a 3 bytes estimating counter with a 100% accurary up to 8388607 hits, then an estimation of 1% error
 type Sketch struct {
-	dict map[uint32][]uint32
+	dict map[key]count
 }
 
-// New ...
+// New return a HashLog sketch with 5 bytes keys and 3 bytes counters
 func New() *Sketch {
 	return &Sketch{
-		dict: make(map[uint32][]uint32),
+		dict: make(map[key]count),
 	}
 }
 
-func (sketch *Sketch) get(h1 uint32, h2 uint8) uint64 {
-	for _, val := range sketch.dict[h1] {
-		if key, precLog, count := splitVal(val); key == h2 {
-			if !precLog {
-				return uint64(count)
-			}
-			return uint64(value(count))
-		}
-	}
-	return 0
-}
-
-func (sketch *Sketch) inc(h1 uint32, h2 uint8) {
-	for i, val := range sketch.dict[h1] {
-		key, precLog, count := splitVal(val)
-		if key == h2 {
-			if !precLog {
-				if count < guaranteeLimit {
-					sketch.dict[h1][i] = joinVal(key, false, count+1)
-				} else {
-					sketch.dict[h1][i] = joinVal(key, true, 29574)
-				}
-			} else {
-				if rand.Float64() < 1/math.Pow(exp, float64(count)) {
-					sketch.dict[h1][i] = joinVal(key, true, count+1)
-				}
-			}
-			return
-		}
-	}
-	sketch.dict[h1] = append(sketch.dict[h1], joinVal(h2, false, 1))
-}
-
-// Increment ...
+// Increment increments the counter of val []byte by +1
 func (sketch *Sketch) Increment(val []byte) {
-	h1, h2 := indicies(val)
-	sketch.inc(h1, h2)
+	k := makeKey(val)
+	v := sketch.dict[k]
+	p, c := getCount(v)
+
+	switch {
+	case !p && c < guaranteeLimit:
+		sketch.dict[k] = makeCount(false, c+1)
+	case !p && c == guaranteeLimit:
+		sketch.dict[k] = makeCount(true, expBase)
+	case true && rand.Float64() < 1/math.Pow(exp, float64(c)):
+		sketch.dict[k] = makeCount(true, c+1)
+	}
 }
 
-// Query ...
-func (sketch *Sketch) Query(val []byte) uint64 {
-	h1, h2 := indicies(val)
-	return sketch.get(h1, h2)
+// Count returns the number of hits for val []byte
+func (sketch *Sketch) Count(val []byte) uint64 {
+	k := makeKey(val)
+	v, ok := sketch.dict[k]
+	if !ok {
+		return 0
+	}
+	p, c := getCount(v)
+	if !p {
+		return uint64(c)
+	}
+	// if we are estimating the calculate the estimation
+	return uint64(value(c))
 }

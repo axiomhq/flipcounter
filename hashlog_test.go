@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
-	"strconv"
 	"testing"
 )
 
@@ -17,19 +16,33 @@ func TestSketch(t *testing.T) {
 	hits := 0
 	for i := uint64(0); i < entries; i++ {
 		id := []byte(fmt.Sprintf("flow-%05d", i))
-		fmt.Println(string(id))
 		expected[string(id)] = (rand.Uint64() % maxHits) + 1
 		for j := uint64(0); j < expected[string(id)]; j++ {
 			sk.Increment(id)
 			hits++
 		}
-		count := sk.Query(id)
+		count := sk.Count(id)
 		ratio := 100*float64(count)/float64(expected[string(id)]) - 100
-		if math.Abs(ratio) > 3 {
-			t.Errorf("%s expected (%d != %d) ratio <= 5%%, got %2f%% (total %d hits)", id, expected[string(id)], count, ratio, hits)
+		if math.Abs(ratio) > 1 {
+			t.Errorf("%s expected (%d != %d) ratio <= 1%%, got %2f%% (total %d hits)", id, expected[string(id)], count, ratio, hits)
+			return
 		}
 	}
 
+}
+
+func TestSketchBillion(t *testing.T) {
+	sk := New()
+	expected := 1000000000
+	for i := 0; i < expected; i++ {
+		sk.Increment([]byte("seif"))
+	}
+	count := sk.Count([]byte("seif"))
+	ratio := 100*float64(count)/float64(expected) - 100
+	if math.Abs(ratio) > 1 {
+		t.Errorf("expected (%d != %d) ratio <= 1%%, got %2f%%", expected, count, ratio)
+		return
+	}
 }
 
 func TestSketchOverflow(t *testing.T) {
@@ -37,26 +50,41 @@ func TestSketchOverflow(t *testing.T) {
 	for i := 0; i < guaranteeLimit; i++ {
 		sk.Increment([]byte("seif"))
 	}
-	count := sk.Query([]byte("seif"))
+	count := sk.Count([]byte("seif"))
 	if count != guaranteeLimit {
 		t.Errorf("expected %d, got %d", guaranteeLimit, count)
 	}
 
 	sk.Increment([]byte("seif"))
-	count = sk.Query([]byte("seif"))
+	count = sk.Count([]byte("seif"))
 	ratio := 100*float64(count)/float64(guaranteeLimit+1) - 100
 	if math.Abs(ratio) > 1 {
-		t.Errorf("%s expected (%d != %d) ratio <= 5%%, got %2f%%", string([]byte("seif")), guaranteeLimit+1, count, ratio)
+		t.Errorf("%s expected (%d != %d) ratio <= 1%%, got %2f%%", string([]byte("seif")), guaranteeLimit+1, count, ratio)
 	}
 }
 
-func TestValSplitJoin(t *testing.T) {
-	bits := "00000110100000000000000000000101"
-	parsed, _ := strconv.ParseUint(bits, 2, 32)
-	val := uint32(parsed)
-	k, p, c := splitVal(val)
-	joined := joinVal(k, p, c)
-	if val != joined {
-		t.Errorf("expected %d, got %d", val, joined)
+func TestSketchTwice(t *testing.T) {
+	sk := New()
+	sk.Increment([]byte("seif"))
+	count := sk.Count([]byte("seif"))
+	if count != 1 {
+		t.Errorf("expected %d, got %d", 1, count)
+	}
+	sk.Increment([]byte("seif"))
+	count = sk.Count([]byte("seif"))
+	if count != 2 {
+		t.Errorf("expected %d, got %d", 2, count)
+	}
+}
+
+func TestGetCount(t *testing.T) {
+	expected := uint32(2097152)
+	count := makeCount(false, expected)
+	p, got := getCount(count)
+	if p != false {
+		t.Errorf("expected 0 == %v, got %v", false, p)
+	}
+	if got != expected {
+		t.Errorf("expected count == %d, got %d", expected, got)
 	}
 }

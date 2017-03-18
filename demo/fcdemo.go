@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/seiflotfy/flipcounter"
+	"github.com/watchly/flipcounter"
 )
 
 func main() {

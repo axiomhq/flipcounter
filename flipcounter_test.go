@@ -35,9 +35,9 @@ func TestCounterBillion(t *testing.T) {
 	sk := New()
 	expected := 1000000000
 	for i := 0; i < expected; i++ {
-		sk.Increment([]byte("seif"))
+		sk.Increment([]byte("watchly"))
 	}
-	count := sk.Get([]byte("seif"))
+	count := sk.Get([]byte("watchly"))
 	ratio := 100*float64(count)/float64(expected) - 100
 	if math.Abs(ratio) > 1 {
 		t.Errorf("expected (%d != %d) ratio <= 1%%, got %2f%%", expected, count, ratio)
@@ -48,30 +48,30 @@ func TestCounterBillion(t *testing.T) {
 func TestCounterOverflow(t *testing.T) {
 	sk := New()
 	for i := 0; i < guaranteeLimit; i++ {
-		sk.Increment([]byte("seif"))
+		sk.Increment([]byte("watchly"))
 	}
-	count := sk.Get([]byte("seif"))
+	count := sk.Get([]byte("watchly"))
 	if count != guaranteeLimit {
 		t.Errorf("expected %d, got %d", guaranteeLimit, count)
 	}
 
-	sk.Increment([]byte("seif"))
-	count = sk.Get([]byte("seif"))
+	sk.Increment([]byte("watchly"))
+	count = sk.Get([]byte("watchly"))
 	ratio := 100*float64(count)/float64(guaranteeLimit+1) - 100
 	if math.Abs(ratio) > 1 {
-		t.Errorf("%s expected (%d != %d) ratio <= 1%%, got %2f%%", string([]byte("seif")), guaranteeLimit+1, count, ratio)
+		t.Errorf("%s expected (%d != %d) ratio <= 1%%, got %2f%%", string([]byte("watchly")), guaranteeLimit+1, count, ratio)
 	}
 }
 
 func TestCounterTwice(t *testing.T) {
 	sk := New()
-	sk.Increment([]byte("seif"))
-	count := sk.Get([]byte("seif"))
+	sk.Increment([]byte("watchly"))
+	count := sk.Get([]byte("watchly"))
 	if count != 1 {
 		t.Errorf("expected %d, got %d", 1, count)
 	}
-	sk.Increment([]byte("seif"))
-	count = sk.Get([]byte("seif"))
+	sk.Increment([]byte("watchly"))
+	count = sk.Get([]byte("watchly"))
 	if count != 2 {
 		t.Errorf("expected %d, got %d", 2, count)
 	}

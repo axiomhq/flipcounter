@@ -5,11 +5,11 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/seiflotfy/hashlog"
+	"github.com/seiflotfy/flipcounter"
 )
 
 func main() {
-	hl := hashlog.New()
+	fc := flipcounter.New()
 
 	max := 100000
 	now := time.Now()
@@ -25,7 +25,7 @@ func main() {
 		expected[i]++
 		id := []byte(fmt.Sprintf("flow-%05d", i))
 		seen[string(id)] = true
-		hl.Increment(id)
+		fc.Increment(id)
 	}
 
 	for i := range expected {
@@ -38,10 +38,10 @@ func main() {
 			// id
 			id := fmt.Sprintf("flow-%05d", i)
 			// estimation
-			est1 := float64(hl.Count([]byte(id)))
+			est1 := float64(fc.Get([]byte(id)))
 			// error ratio
 			ratio1 := 100*est1/float64(expected[i]) - 100
-			fmt.Printf("\n%s:\t\texpected %d\t\thlg ~= %.2f%%", id, expected[i], ratio1)
+			fmt.Printf("\n%s:\t\texpected %d\t\tfcg ~= %.2f%%", id, expected[i], ratio1)
 		}
 	}
 	fmt.Println(time.Since(now))

@@ -1,4 +1,4 @@
-package hashlog
+package flipcounter
 
 import (
 	"encoding/binary"
@@ -56,45 +56,44 @@ func makeCount(p bool, c uint32) count {
 	return count{bytes[0], bytes[1], bytes[2]}
 }
 
-// Sketch consits of a 5 bytes key and a 3 bytes estimating counter with a 100% accurary up to 8388607 hits, then an estimation of 1% error
-type Sketch struct {
+// Counter consits of a 5 bytes key and a 3 bytes estimating counter with a 100% accurary up to 8388607 hits, then an estimation of 1% error
+type Counter struct {
 	dict map[key]count
 }
 
 // New return a HashLog sketch with 5 bytes keys and 3 bytes counters
-func New() *Sketch {
-	return &Sketch{
+func New() *Counter {
+	return &Counter{
 		dict: make(map[key]count),
 	}
 }
 
 // Increment increments the counter of val []byte by +1
-func (sketch *Sketch) Increment(val []byte) {
+func (fc *Counter) Increment(val []byte) {
 	k := makeKey(val)
-	v := sketch.dict[k]
+	v := fc.dict[k]
 	p, c := getCount(v)
 
 	switch {
-	case !p && c < guaranteeLimit:
-		sketch.dict[k] = makeCount(false, c+1)
-	case !p && c == guaranteeLimit:
-		sketch.dict[k] = makeCount(true, expBase)
-	case true && rand.Float64() < 1/math.Pow(exp, float64(c)):
-		sketch.dict[k] = makeCount(true, c+1)
+	case !p && c < guaranteeLimit: // good old +1 counting
+		fc.dict[k] = makeCount(false, c+1)
+	case !p && c == guaranteeLimit: // flip the bit, its estimation time
+		fc.dict[k] = makeCount(true, expBase)
+	case true && rand.Float64() < 1/math.Pow(exp, float64(c)): // roll the dice on incrementing
+		fc.dict[k] = makeCount(true, c+1)
 	}
 }
 
-// Count returns the number of hits for val []byte
-func (sketch *Sketch) Count(val []byte) uint64 {
+// Get returns the number of hits for val []byte
+func (fc *Counter) Get(val []byte) uint64 {
 	k := makeKey(val)
-	v, ok := sketch.dict[k]
-	if !ok {
-		return 0
+	if v, ok := fc.dict[k]; ok {
+		p, c := getCount(v)
+		if !p {
+			return uint64(c)
+		}
+		// if we are estimating the calculate the estimation
+		return uint64(value(c))
 	}
-	p, c := getCount(v)
-	if !p {
-		return uint64(c)
-	}
-	// if we are estimating the calculate the estimation
-	return uint64(value(c))
+	return 0
 }

@@ -1,4 +1,4 @@
-package hashlog
+package flipcounter
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestSketch(t *testing.T) {
+func TestCounter(t *testing.T) {
 	sk := New()
 	expected := map[string]uint64{}
 	entries := uint64(10)
@@ -21,7 +21,7 @@ func TestSketch(t *testing.T) {
 			sk.Increment(id)
 			hits++
 		}
-		count := sk.Count(id)
+		count := sk.Get(id)
 		ratio := 100*float64(count)/float64(expected[string(id)]) - 100
 		if math.Abs(ratio) > 1 {
 			t.Errorf("%s expected (%d != %d) ratio <= 1%%, got %2f%% (total %d hits)", id, expected[string(id)], count, ratio, hits)
@@ -31,13 +31,13 @@ func TestSketch(t *testing.T) {
 
 }
 
-func TestSketchBillion(t *testing.T) {
+func TestCounterBillion(t *testing.T) {
 	sk := New()
 	expected := 1000000000
 	for i := 0; i < expected; i++ {
 		sk.Increment([]byte("seif"))
 	}
-	count := sk.Count([]byte("seif"))
+	count := sk.Get([]byte("seif"))
 	ratio := 100*float64(count)/float64(expected) - 100
 	if math.Abs(ratio) > 1 {
 		t.Errorf("expected (%d != %d) ratio <= 1%%, got %2f%%", expected, count, ratio)
@@ -45,33 +45,33 @@ func TestSketchBillion(t *testing.T) {
 	}
 }
 
-func TestSketchOverflow(t *testing.T) {
+func TestCounterOverflow(t *testing.T) {
 	sk := New()
 	for i := 0; i < guaranteeLimit; i++ {
 		sk.Increment([]byte("seif"))
 	}
-	count := sk.Count([]byte("seif"))
+	count := sk.Get([]byte("seif"))
 	if count != guaranteeLimit {
 		t.Errorf("expected %d, got %d", guaranteeLimit, count)
 	}
 
 	sk.Increment([]byte("seif"))
-	count = sk.Count([]byte("seif"))
+	count = sk.Get([]byte("seif"))
 	ratio := 100*float64(count)/float64(guaranteeLimit+1) - 100
 	if math.Abs(ratio) > 1 {
 		t.Errorf("%s expected (%d != %d) ratio <= 1%%, got %2f%%", string([]byte("seif")), guaranteeLimit+1, count, ratio)
 	}
 }
 
-func TestSketchTwice(t *testing.T) {
+func TestCounterTwice(t *testing.T) {
 	sk := New()
 	sk.Increment([]byte("seif"))
-	count := sk.Count([]byte("seif"))
+	count := sk.Get([]byte("seif"))
 	if count != 1 {
 		t.Errorf("expected %d, got %d", 1, count)
 	}
 	sk.Increment([]byte("seif"))
-	count = sk.Count([]byte("seif"))
+	count = sk.Get([]byte("seif"))
 	if count != 2 {
 		t.Errorf("expected %d, got %d", 2, count)
 	}

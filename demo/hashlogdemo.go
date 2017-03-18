@@ -37,13 +37,10 @@ func main() {
 		if (i > len(expected)-100 || i < 100) || (i < (len(expected)/2)+50 && i > (len(expected)/2)-50) {
 			// id
 			id := fmt.Sprintf("flow-%05d", i)
-
 			// estimation
 			est1 := float64(hl.Count([]byte(id)))
-
 			// error ratio
 			ratio1 := 100*est1/float64(expected[i]) - 100
-
 			fmt.Printf("\n%s:\t\texpected %d\t\thlg ~= %.2f%%", id, expected[i], ratio1)
 		}
 	}

@@ -16,14 +16,10 @@ const (
 )
 
 func value(c uint32) float64 {
-	switch c {
-	case 0:
-		return 0
-	case 1:
-		return math.Pow(exp, float64(c-1))
-	default:
-		return (1 - math.Pow(exp, float64(c))) / (1 - exp)
+	if c <= 1 {
+		return float64(c)
 	}
+	return (1 - math.Pow(exp, float64(c))) / (1 - exp)
 }
 
 type key [5]byte   // guarantees us 1,099,511,627,776 unique keys

@@ -91,3 +91,8 @@ func (fc *Counter) Get(val []byte) uint64 {
 	}
 	return 0
 }
+
+// Len ...
+func (fc *Counter) Len() uint64 {
+	return uint64(len(*fc))
+}

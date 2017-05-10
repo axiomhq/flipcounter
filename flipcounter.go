@@ -53,37 +53,35 @@ func makeCount(p bool, c uint32) count {
 }
 
 // Counter consits of a 5 bytes key and a 3 bytes estimating counter with a 100% accurary up to 8388607 hits, then an estimation of 1% error
-type Counter struct {
-	dict map[key]count
-}
+type Counter map[key]count
 
 // New return a HashLog sketch with 5 bytes keys and 3 bytes counters
 func New() *Counter {
-	return &Counter{
-		dict: make(map[key]count),
-	}
+	dict := make(map[key]count)
+	counter := Counter(dict)
+	return &counter
 }
 
 // Increment increments the counter of val []byte by +1
 func (fc *Counter) Increment(val []byte) {
 	k := makeKey(val)
-	v := fc.dict[k]
+	v := (*fc)[k]
 	p, c := getCount(v)
 
 	switch {
 	case !p && c < guaranteeLimit: // good old +1 counting
-		fc.dict[k] = makeCount(false, c+1)
+		(*fc)[k] = makeCount(false, c+1)
 	case !p && c == guaranteeLimit: // flip the bit, its estimation time
-		fc.dict[k] = makeCount(true, expBase)
+		(*fc)[k] = makeCount(true, expBase)
 	case true && rand.Float64() < 1/math.Pow(exp, float64(c)): // roll the dice on incrementing
-		fc.dict[k] = makeCount(true, c+1)
+		(*fc)[k] = makeCount(true, c+1)
 	}
 }
 
 // Get returns the number of hits for val []byte
 func (fc *Counter) Get(val []byte) uint64 {
 	k := makeKey(val)
-	if v, ok := fc.dict[k]; ok {
+	if v, ok := (*fc)[k]; ok {
 		p, c := getCount(v)
 		if !p {
 			return uint64(c)

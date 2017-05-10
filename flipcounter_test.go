@@ -11,7 +11,7 @@ func TestCounter(t *testing.T) {
 	sk := New()
 	expected := map[string]uint64{}
 	entries := uint64(10)
-	maxHits := uint64(100000000)
+	maxHits := uint64(1000000)
 
 	hits := 0
 	for i := uint64(0); i < entries; i++ {
@@ -31,9 +31,9 @@ func TestCounter(t *testing.T) {
 
 }
 
-func TestCounterBillion(t *testing.T) {
+func TestCounterMillion(t *testing.T) {
 	sk := New()
-	expected := 1000000000
+	expected := 1000000
 	for i := 0; i < expected; i++ {
 		sk.Increment([]byte("watchly"))
 	}
